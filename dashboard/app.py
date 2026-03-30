@@ -903,7 +903,7 @@ if st.session_state.result is not None:
     # -------------------------------------------------------------------
     # 5) Backtest
     # -------------------------------------------------------------------
-    active_strategy = result.get("strategy", "ML Modeli")
+    active_strategy = result.get("strategy", "Yön Tahmini")
     strat_info      = STRATEGY_INFO.get(active_strategy, {})
     strat_color     = strat_info.get("color", "#1976D2")
     strat_icon      = strat_info.get("icon", "📊")
