@@ -9,6 +9,7 @@ from typing import Optional
 INITIAL_CAPITAL_TRY = 10_000.0   # Altın için başlangıç sermayesi (TRY)
 INITIAL_CAPITAL_USD = 10_000.0   # USD/TRY ve BTC için başlangıç sermayesi (USD)
 TRANSACTION_COST    = 0.001       # İşlem maliyeti: %0.1 (her alım/satımda)
+SLIPPAGE            = 0.0005      # Kayma payı: %0.05 (piyasa fiyatı sapması)
 
 
 # ---------------------------------------------------------------------------
@@ -19,19 +20,27 @@ def run_backtest(
     predictions: np.ndarray,
     asset: str = "BTC",
     initial_capital: Optional[float] = None,
+    slippage: float = SLIPPAGE,
 ) -> pd.DataFrame:
     """
-    Modelin ürettiği tahminlere göre basit bir Al/Sat simülasyonu çalıştırır.
+    Modelin ürettiği tahminlere göre gerçekçi bir Al/Sat simülasyonu çalıştırır.
 
     Strateji:
         - Tahmin = 1 (fiyat çıkacak) → pozisyon aç (al)
         - Tahmin = 0 (fiyat düşecek) → pozisyon kapat (sat) ya da bekle
+
+    Gerçekçilik:
+        - Her işlemde transaction cost (%0.1) uygulanır
+        - Her işlemde slippage (kayma payı, %0.05) uygulanır:
+            Alımda: fiyat * (1 + slippage)  → biraz pahalıya alırsın
+            Satışta: fiyat * (1 - slippage) → biraz ucuza satarsın
 
     Args:
         df             : build_features() çıktısı (Date ve Close kolonları olmalı)
         predictions    : Model tahminleri (0/1 array, df ile aynı uzunlukta)
         asset          : "Altın", "USD/TRY" veya "BTC"
         initial_capital: Başlangıç sermayesi (None ise varlığa göre otomatik)
+        slippage       : Kayma payı oranı (varsayılan: 0.0005 = %0.05)
 
     Returns:
         Her satırda bir işlem günü olan backtest sonuç DataFrame'i.
@@ -78,16 +87,18 @@ def run_backtest(
 
         # --- AL sinyali ---
         if signal == 1 and not in_position and cash > 0:
+            buy_price    = price * (1 + slippage)   # slippage: biraz pahalıya al
             cost         = cash * TRANSACTION_COST
             invest       = cash - cost
-            units_held   = invest / price
+            units_held   = invest / buy_price
             cash         = 0.0
             in_position  = True
             trade_tag    = "BUY"
 
         # --- SAT sinyali ---
         elif signal == 0 and in_position:
-            gross        = units_held * price
+            sell_price   = price * (1 - slippage)   # slippage: biraz ucuza sat
+            gross        = units_held * sell_price
             fee          = gross * TRANSACTION_COST
             net          = gross - fee
             trade_pnl    = net - (

@@ -1,91 +1,146 @@
-# 🤖 Algo Trading Bot – Altın / Döviz / Kripto
+# 📈 Algo Trading Bot
 
-ML tabanlı yön tahmin modeli, backtesting simülasyonu ve Streamlit dashboard'u içeren FinTech projesi.
+> ML tabanlı yön tahmin modeli, çoklu strateji backtesting simülasyonu ve canlı Streamlit dashboard'u içeren FinTech projesi.
+
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://algo-trading-bot.streamlit.app)
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
 
-## 📌 Proje Özeti
+## 📌 Project Overview
+
+Bu proje; **Altın (XAU/USD → TRY/gram)**, **USD/TRY** ve **BTC/USD** varlıkları üzerinde:
+
+- Makine öğrenmesi ile fiyat yön tahmini yapar
+- 3 farklı strateji ile gerçekçi backtest simülasyonu çalıştırır
+- Sonuçları interaktif bir Streamlit dashboard üzerinden sunar
+- FastAPI ile REST API endpoint'leri sağlar
+
+---
+
+## ⚙️ Features
 
 | Özellik | Detay |
 |---|---|
+| **Veri Kaynağı** | Yahoo Finance (`yfinance`) — 2015'ten bugüne |
 | **Varlıklar** | Altın (XAU/USD → TRY/gram), USD/TRY, BTC/USD |
-| **Model** | XGBoost / Random Forest |
-| **Feature'lar** | MA(5,20,50), RSI(14), Momentum, Lag, Bollinger Bands, Volatilite |
-| **Backtest** | Al/Sat simülasyonu, Sharpe Ratio, Max Drawdown, Win Rate |
-| **Dashboard** | Streamlit (Streamlit Cloud'a deploy edilebilir) |
-| **API** | FastAPI (lokal çalışır, portfolyo için) |
+| **ML Modeller** | XGBoost, Random Forest — otomatik en iyisi seçilir |
+| **Stratejiler** | ML Modeli, SMA Crossover, RSI Stratejisi |
+| **Backtest** | Transaction cost + Slippage dahil gerçekçi simülasyon |
+| **Metrikler** | Sharpe Ratio, Max Drawdown, Win Rate, Annualized Return |
+| **Dashboard** | Streamlit — interaktif grafikler, tahmin sinyali |
+| **API** | FastAPI — `/predict`, `/train`, `/backtest` endpoint'leri |
 
 ---
 
-## 📁 Klasör Yapısı
+## 🧠 Strategies
+
+### 🤖 ML Modeli
+XGBoost ve Random Forest modellerini eğitir, test accuracy'si yüksek olanı otomatik seçer. Teknik indikatörlerden (MA, RSI, Momentum, Bollinger Bands) öğrenir ve yarınki fiyat yönünü tahmin eder.
 
 ```
-algo-trading-bot/
-│
-├── data/                        # Ham ve işlenmiş veriler
-│   └── cache/                   # yfinance cache
-│
-├── models/                      # Eğitilmiş .pkl modeller
-│   ├── xau_usd_model.pkl
-│   ├── usd_try_model.pkl
-│   └── btc_usd_model.pkl
-│
-├── src/                         # İş mantığı modülleri
-│   ├── data_fetcher.py          # yfinance veri çekme
-│   ├── feature_engineering.py  # Teknik indikatörler
-│   ├── model_trainer.py         # Eğitim, değerlendirme, kaydetme
-│   ├── backtester.py            # Backtest simülasyonu
-│   └── predictor.py             # Birleşik tahmin arayüzü
-│
-├── api/
-│   └── main.py                  # FastAPI backend
-│
-├── dashboard/
-│   └── app.py                   # Streamlit dashboard
-│
-├── requirements.txt
-├── .gitignore
-└── README.md
+Feature Engineering → Train/Test Split → XGBoost vs RF → Kazananı Seç → Tahmin
+```
+
+### 📈 SMA Crossover
+Kısa ve uzun vadeli hareketli ortalamaların kesişimine dayalı klasik trend takip stratejisi.
+
+```
+MA5 > MA20 → AL
+MA5 ≤ MA20 → SAT
+```
+
+### 📉 RSI Stratejisi
+RSI göstergesinin aşırı alım/satım bölgelerine dayalı kontrarian strateji.
+
+```
+RSI < 30 → AL  (aşırı satım, geri dönüş beklenir)
+RSI > 70 → SAT (aşırı alım, düzeltme beklenir)
+Arada    → Önceki sinyali koru
 ```
 
 ---
 
-## 🚀 Kurulum
+## 📊 Performance Metrics
 
-### 1. Bağımlılıkları Yükle
+| Metrik | Açıklama |
+|---|---|
+| **Total Return** | Başlangıç sermayesine göre toplam getiri (%) |
+| **Annualized Return** | Yıllık bileşik getiri (%) |
+| **Sharpe Ratio** | Risk-adjusted getiri — yüksek = iyi (>1 hedeflenir) |
+| **Max Drawdown** | Zirve noktasından en büyük gerileme (%) |
+| **Win Rate** | Kârlı işlemlerin toplam işlemlere oranı (%) |
+| **Buy & Hold vs Strategy** | Pasif tutma stratejisi ile karşılaştırma |
 
+---
+
+## 🔬 Feature Engineering
+
+Model eğitiminde kullanılan teknik indikatörler:
+
+| Feature | Açıklama |
+|---|---|
+| `MA_5, MA_20, MA_50` | Hareketli ortalamalar (5, 20, 50 gün) |
+| `RSI_14` | Relative Strength Index (14 gün) |
+| `Momentum` | `Close(t) / Close(t-5)` — fiyat ivmesi |
+| `Lag_1, Lag_3` | 1 ve 3 günlük gecikmeli kapanış fiyatları |
+| `BB_Upper/Lower/Mid` | Bollinger Bands (20 gün, 2σ) |
+| `BB_Pct` | Fiyatın bantlar içindeki yüzde konumu |
+| `Volatility` | 20 günlük yıllıklaştırılmış volatilite |
+
+---
+
+## 💰 Backtest Gerçekçiliği
+
+Sonuçların gerçek dünya koşullarını yansıtması için:
+
+```python
+TRANSACTION_COST = 0.001   # %0.1 — her alım/satımda
+SLIPPAGE         = 0.0005  # %0.05 — alımda pahalıya, satışta ucuza
+```
+
+- **Alımda:** `buy_price  = market_price × (1 + slippage)`
+- **Satışta:** `sell_price = market_price × (1 − slippage)`
+- **Her işlemde:** ayrıca transaction cost düşülür
+
+---
+
+## 🚀 Demo
+
+🔗 **[algo-trading-bot.streamlit.app](https://algo-trading-bot.streamlit.app)**
+
+**Kullanım:**
+1. Sidebar'dan varlık seç: BTC / Altın / USD-TRY
+2. Strateji seç: ML Modeli / SMA Crossover / RSI Stratejisi
+3. Tarih aralığı belirle
+4. **Tahmin Et & Analiz** butonuna bas
+
+---
+
+## ⚡ Kurulum
+
+### 1. Repo'yu klonla
+```bash
+git clone https://github.com/kullanici-adi/algo-trading-bot.git
+cd algo-trading-bot
+```
+
+### 2. Bağımlılıkları yükle
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Streamlit Dashboard'u Başlat
-
+### 3. Dashboard'u başlat
 ```bash
 streamlit run dashboard/app.py
 ```
 
-### 3. FastAPI Backend'i Başlat (opsiyonel, lokal)
-
+### 4. FastAPI'yi başlat (opsiyonel)
 ```bash
 uvicorn api.main:app --reload --port 8000
 ```
-
-API Swagger dokümantasyonu: [http://localhost:8000/docs](http://localhost:8000/docs)
-
----
-
-## 🖥️ Dashboard Kullanımı
-
-1. **Sidebar'dan varlık seç** → Altın / USD/TRY / BTC
-2. **Tarih aralığı belirle** → Başlangıç ve bitiş tarihi
-3. **"Tahmin Et" butonuna tıkla**
-4. Dashboard şunları gösterir:
-   - Güncel fiyat grafiği (Close + MA çizgileri)
-   - **AL / SAT / BEKLE** sinyali (renk + güven skoru)
-   - RSI ve Momentum grafikleri
-   - Backtest simülasyonu (model vs. Buy & Hold)
-   - Performans metrikleri
-   - Son 5 günün tahmin tablosu
+Swagger docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
@@ -95,14 +150,13 @@ API Swagger dokümantasyonu: [http://localhost:8000/docs](http://localhost:8000/
 |---|---|---|
 | `GET` | `/` | Sağlık kontrolü |
 | `GET` | `/predict?asset=BTC` | Yön tahmini |
-| `POST` | `/train` | Model eğit |
+| `POST` | `/train` | Model eğit & kaydet |
 | `GET` | `/backtest?asset=BTC` | Backtest özeti |
-| `GET` | `/backtest-detail?asset=BTC` | Gün gün backtest |
-| `GET` | `/feature-importance?asset=BTC` | Feature önemi |
+| `GET` | `/backtest-detail?asset=BTC` | Gün gün backtest verisi |
+| `GET` | `/feature-importance?asset=BTC` | Feature önem sıralaması |
 | `GET` | `/latest-price?asset=BTC` | Güncel fiyat |
 
 ### Örnek `/predict` Yanıtı
-
 ```json
 {
   "ticker": "BTC-USD",
@@ -118,73 +172,49 @@ API Swagger dokümantasyonu: [http://localhost:8000/docs](http://localhost:8000/
 
 ---
 
-## 🧠 ML Pipeline
+## 📁 Proje Yapısı
 
 ```
-Ham Veri (yfinance)
-        ↓
-Feature Engineering
-  MA(5,20,50) | RSI(14) | Momentum | Lag(1,3)
-  Bollinger Bands | Volatilite
-        ↓
-Zaman Serisi Split (%80 train / %20 test)
-        ↓
-XGBoost / Random Forest Eğitimi
-        ↓
-Değerlendirme (Accuracy, Directional Accuracy)
-        ↓
-Model Kaydet (.pkl)
-        ↓
-Tahmin → AL / SAT / BEKLE Sinyali
+algo-trading-bot/
+│
+├── data/cache/              # yfinance önbellek
+├── models/                  # Eğitilmiş .pkl modeller
+│
+├── src/
+│   ├── data_fetcher.py      # Veri çekme (yfinance)
+│   ├── feature_engineering.py  # Teknik indikatörler
+│   ├── model_trainer.py     # Model eğitimi & değerlendirme
+│   ├── strategies.py        # SMA / RSI / ML sinyal üretici
+│   ├── backtester.py        # Backtest simülasyonu
+│   └── predictor.py         # Birleşik tahmin pipeline'ı
+│
+├── api/main.py              # FastAPI backend
+├── dashboard/app.py         # Streamlit dashboard
+│
+├── requirements.txt
+├── runtime.txt              # Python 3.11
+└── README.md
 ```
 
 ---
 
-## 📊 Backtest Stratejisi
+## 🛠️ Teknoloji Stack'i
 
-- **Başlangıç Sermayesi:** 10.000 ₺ (Altın) / $10.000 (USD/TRY, BTC)
-- **İşlem Maliyeti:** %0.1 (her alım/satımda)
-- **Strateji:** Tahmin = 1 (Al) → Pozisyon aç | Tahmin = 0 (Sat) → Pozisyon kapat
-- **Karşılaştırma:** Buy & Hold benchmark ile karşılaştırılır
-
----
-
-## ☁️ Streamlit Cloud Deploy
-
-1. GitHub'a push et
-2. [share.streamlit.io](https://share.streamlit.io) adresine git
-3. Repository'i bağla
-4. **Main file path:** `dashboard/app.py`
-5. Deploy!
-
-> **Not:** Deploy öncesi modelleri eğitip `models/` klasörünü repoya dahil et.
-
----
-
-## 🛠️ Gereksinimler
-
-- Python 3.10+
-- İnternet bağlantısı (yfinance veri çekimi için)
-
----
-
-## 📈 Desteklenen Varlıklar
-
-| Varlık | Ticker | Para Birimi |
-|---|---|---|
-| Altın | GC=F (XAU/USD) | USD → TRY/gram |
-| Döviz | TRY=X (USD/TRY) | TRY |
-| Bitcoin | BTC-USD | USD |
+| Katman | Teknoloji |
+|---|---|
+| **Veri** | yfinance, pandas, numpy |
+| **ML** | scikit-learn, XGBoost |
+| **Backtest** | Özel simülasyon motoru |
+| **Dashboard** | Streamlit, Plotly |
+| **API** | FastAPI, uvicorn |
+| **Deploy** | Streamlit Community Cloud |
 
 ---
 
 ## ⚠️ Sorumluluk Reddi
 
-Bu proje **yalnızca eğitim amaçlıdır**. Gerçek finansal yatırım kararları için kullanılmamalıdır. Geçmiş performans gelecekteki sonuçları garanti etmez.
+Bu proje **yalnızca eğitim ve portfolyo amaçlıdır**. Gerçek finansal yatırım kararlarında kullanılmamalıdır. Geçmiş performans gelecekteki sonuçları garanti etmez.
 
 ---
 
-## 👤 Yazar
-
-FinTech ML projesi — Algo Trading Bot  
-*Streamlit Dashboard + FastAPI + XGBoost/Random Forest + Backtesting*
+*FinTech ML projesi — Streamlit Dashboard + FastAPI + XGBoost/Random Forest + Multi-Strategy Backtesting*

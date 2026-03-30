@@ -17,6 +17,7 @@ from datetime import datetime, date
 from src.data_fetcher import get_data, get_latest_price
 from src.feature_engineering import build_features, get_feature_columns
 from src.predictor import predict_next_day, predict_multi_day, run_full_backtest
+from src.strategies import STRATEGY_INFO
 
 # ---------------------------------------------------------------------------
 # Sayfa Ayarları
@@ -453,6 +454,37 @@ def make_bollinger_chart(feature_df: pd.DataFrame) -> go.Figure:
 
 
 # ---------------------------------------------------------------------------
+def make_drawdown_chart(backtest_df: pd.DataFrame) -> go.Figure:
+    """Drawdown grafigi — portföyün zirve noktasından ne kadar gerilediğini gösterir."""
+    rolling_max = backtest_df["Portfolio_Value"].cummax()
+    drawdown    = (backtest_df["Portfolio_Value"] - rolling_max) / rolling_max * 100
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=backtest_df["Date"],
+        y=drawdown,
+        fill="tozeroy",
+        fillcolor="rgba(211,47,47,0.15)",
+        line=dict(color="#D32F2F", width=1.5),
+        name="Drawdown (%)",
+        hovertemplate="%{x|%Y-%m-%d}<br>Drawdown: %{y:.2f}%<extra></extra>",
+    ))
+    fig.add_hline(y=0, line=dict(color="#aaa", width=1))
+
+    fig.update_layout(
+        title=dict(text="Drawdown (Zirve'den Gerileme %)", font=dict(size=15, color="#1a1a2e")),
+        xaxis=dict(showgrid=True, gridcolor="#f0f0f0", title="Tarih"),
+        yaxis=dict(showgrid=True, gridcolor="#f0f0f0", ticksuffix="%"),
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        height=260,
+        margin=dict(l=20, r=20, t=45, b=20),
+        showlegend=False,
+        hovermode="x unified",
+    )
+    return fig
+
+
 # Session State
 # ---------------------------------------------------------------------------
 if "result" not in st.session_state:
@@ -465,6 +497,8 @@ if "last_asset" not in st.session_state:
     st.session_state.last_asset = None
 if "last_run_time" not in st.session_state:
     st.session_state.last_run_time = 0.0
+if "strategy" not in st.session_state:
+    st.session_state.strategy = "ML Modeli"
 
 # Sabitler
 MIN_DAYS   = 180    # Model eğitimi için minimum gün sayısı
@@ -490,6 +524,24 @@ with st.sidebar:
         "📊 Varlık Seçin",
         ["BTC", "Altın", "USD/TRY"],
         index=0,
+    )
+
+    # Strateji Seçimi
+    st.markdown("**⚙️ Strateji Seçin**")
+    strategy_options = list(STRATEGY_INFO.keys())
+    strategy = st.radio(
+        "strateji",
+        strategy_options,
+        format_func=lambda s: f"{STRATEGY_INFO[s]['icon']} {s}",
+        label_visibility="collapsed",
+    )
+    info = STRATEGY_INFO[strategy]
+    st.markdown(
+        f"<div style='background:#f4f6fb; border-left:3px solid {info['color']}; "
+        f"border-radius:6px; padding:8px 12px; font-size:0.78rem; color:#444; margin-bottom:4px;'>"
+        f"{info['description']}<br><code style='font-size:0.72rem;'>{info['logic']}</code>"
+        f"</div>",
+        unsafe_allow_html=True,
     )
 
     # Tarih Aralığı
@@ -588,6 +640,7 @@ if run_btn:
                 start=start_str,
                 model_type="auto",
                 force_retrain=False,
+                strategy=strategy,
             )
             st.session_state.result = result
             st.session_state.last_asset = asset
@@ -843,7 +896,18 @@ if st.session_state.result is not None:
     # -------------------------------------------------------------------
     # 5) Backtest
     # -------------------------------------------------------------------
-    st.markdown("### 💰 Backtest Simülasyonu")
+    active_strategy = result.get("strategy", "ML Modeli")
+    strat_info      = STRATEGY_INFO.get(active_strategy, {})
+    strat_color     = strat_info.get("color", "#1976D2")
+    strat_icon      = strat_info.get("icon", "📊")
+
+    st.markdown(
+        f"### 💰 Backtest Simülasyonu &nbsp;"
+        f"<span style='background:{strat_color}18; color:{strat_color}; "
+        f"font-size:0.82rem; font-weight:700; padding:4px 12px; border-radius:20px; "
+        f"border:1.5px solid {strat_color}40;'>{strat_icon} {active_strategy}</span>",
+        unsafe_allow_html=True,
+    )
 
     currency_sym = "₺" if curr_asset == "Altın" else "$"
 
@@ -895,6 +959,9 @@ if st.session_state.result is not None:
 
     # Kümülatif getiri
     st.plotly_chart(make_cumulative_return_chart(backtest_df, bh_df), use_container_width=True)
+
+    # Drawdown
+    st.plotly_chart(make_drawdown_chart(backtest_df), use_container_width=True)
 
     # Detaylı metrikler
     with st.expander("📋 Detaylı Backtest Metrikleri"):

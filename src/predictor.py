@@ -10,6 +10,7 @@ from src.data_fetcher import get_data, get_latest_price
 from src.feature_engineering import build_features, get_feature_columns
 from src.model_trainer import load_model, model_exists, full_train_pipeline, evaluate_model, time_series_split
 from src.backtester import run_backtest, compute_metrics, buy_and_hold, INITIAL_CAPITAL_TRY, INITIAL_CAPITAL_USD
+from src.strategies import get_signals
 
 
 # ---------------------------------------------------------------------------
@@ -282,12 +283,14 @@ def run_full_backtest(
     start: str = "2015-01-01",
     model_type: str = "auto",
     force_retrain: bool = False,
+    strategy: str = "ML Modeli",
 ) -> dict:
     """
-    Veri çekme → eğitim → backtest → metrik hesaplama adımlarını birleştiren
-    tam pipeline. Dashboard'un tek fonksiyon çağırması yeterli.
+    Veri çekme → eğitim → sinyal üretme → backtest → metrik hesaplama.
+    Dashboard'un tek fonksiyon çağırması yeterli.
 
     model_type="auto" ise XGBoost ve RF karşılaştırılır, kazananı kullanılır.
+    strategy: "ML Modeli" | "SMA Crossover" | "RSI Stratejisi"
 
     Returns:
         {
@@ -299,21 +302,26 @@ def run_full_backtest(
           "feature_cols"   : list,
           "model"          : model nesnesi,
           "initial_capital": float,
+          "strategy"       : str,
         }
     """
     # 1. Veri
     raw_df, feature_df, feature_cols = prepare_data(asset, start=start)
 
-    # 2. Model seç
+    # 2. ML modeli her zaman yükle/eğit (tahmin widget'ı için gerekli)
     if model_type == "auto" or force_retrain:
         model, chosen_type, acc_xgb, acc_rf = select_best_model(asset, feature_df, feature_cols)
         print(f"[Auto] XGBoost acc={acc_xgb:.4f} | RF acc={acc_rf:.4f} → Seçilen: {chosen_type}")
     else:
         model = get_or_train_model(asset, feature_df, feature_cols, model_type, force_retrain)
 
-    # 3. Tüm veri üzerinde tahmin yap (backtest için)
-    X_all     = feature_df[feature_cols]
-    all_preds = model.predict(X_all)
+    # 3. Seçilen stratejiye göre sinyal üret
+    all_preds = get_signals(
+        strategy     = strategy,
+        df           = feature_df,
+        model        = model,
+        feature_cols = feature_cols,
+    )
 
     # 4. Backtest
     initial_capital = INITIAL_CAPITAL_TRY if asset == "Altın" else INITIAL_CAPITAL_USD
@@ -330,6 +338,7 @@ def run_full_backtest(
         "feature_cols"   : feature_cols,
         "model"          : model,
         "initial_capital": initial_capital,
+        "strategy"       : strategy,
     }
 
 
