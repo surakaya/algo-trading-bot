@@ -16,7 +16,7 @@ from datetime import datetime, date
 
 from src.data_fetcher import get_data, get_latest_price
 from src.feature_engineering import build_features, get_feature_columns
-from src.predictor import predict_next_day, predict_multi_day, run_full_backtest
+from src.predictor import predict_next_day, predict_multi_day
 from src.strategies import STRATEGY_INFO
 
 
@@ -25,10 +25,58 @@ from src.strategies import STRATEGY_INFO
 # ---------------------------------------------------------------------------
 @st.cache_data(ttl=3600, show_spinner=False)
 def _cached_backtest(asset: str, start_str: str, strategy: str) -> dict:
-    result = run_full_backtest(
-        asset=asset, start=start_str, model_type="auto", force_retrain=False, strategy=strategy
+    # Doğrudan alt modülleri import et — stale predictor referansını atla
+    from src.data_fetcher import get_data
+    from src.feature_engineering import build_features, get_feature_columns
+    from src.model_trainer import (
+        train_model, evaluate_model, time_series_split,
+        save_model, load_model, model_exists,
     )
-    return {k: v for k, v in result.items() if k != "model"}
+    from src.strategies import get_signals
+    from src.backtester import (
+        run_backtest, compute_metrics, buy_and_hold,
+        INITIAL_CAPITAL_TRY, INITIAL_CAPITAL_USD,
+    )
+
+    # 1. Veri
+    raw_df   = get_data(asset, start=start_str)
+    feat_df  = build_features(raw_df)
+    feat_cols = get_feature_columns()
+    feat_cols = [c for c in feat_cols if c in feat_df.columns]
+
+    # 2. Model: varsa yükle, yoksa iki modeli karşılaştır ve kazananı kaydet
+    if model_exists(asset):
+        model = load_model(asset)
+    else:
+        X_train, X_test, y_train, y_test = time_series_split(feat_df, feat_cols)
+        trained, accuracies = {}, {}
+        for mt in ["xgboost", "random_forest"]:
+            m = train_model(X_train, y_train, model_type=mt, optimize=False)
+            accuracies[mt] = evaluate_model(m, X_test, y_test)["accuracy"]
+            trained[mt] = m
+        best = "xgboost" if accuracies["xgboost"] >= accuracies["random_forest"] else "random_forest"
+        model = trained[best]
+        save_model(model, asset)
+
+    # 3. Sinyal üret
+    all_preds = get_signals(strategy=strategy, df=feat_df, model=model, feature_cols=feat_cols)
+
+    # 4. Backtest
+    initial_capital = INITIAL_CAPITAL_TRY if asset == "Altın" else INITIAL_CAPITAL_USD
+    backtest_df = run_backtest(feat_df, all_preds, asset=asset, initial_capital=initial_capital)
+    bh_df       = buy_and_hold(feat_df, asset=asset, initial_capital=initial_capital)
+    metrics     = compute_metrics(backtest_df, initial_capital=initial_capital)
+
+    return {
+        "backtest_df"    : backtest_df,
+        "bh_df"          : bh_df,
+        "metrics"        : metrics,
+        "feature_df"     : feat_df,
+        "raw_df"         : raw_df,
+        "feature_cols"   : feat_cols,
+        "initial_capital": initial_capital,
+        "strategy"       : strategy,
+    }
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -553,6 +601,7 @@ with st.sidebar:
     strategy = st.radio(
         "strateji",
         strategy_options,
+        index=0,
         format_func=lambda s: f"{STRATEGY_INFO[s]['icon']} {s}",
         label_visibility="collapsed",
     )
@@ -604,20 +653,11 @@ with st.sidebar:
 
     st.divider()
 
-    # Cooldown kontrolü
-    elapsed     = time.time() - st.session_state.last_run_time
-    on_cooldown = elapsed < COOLDOWN_S
-    btn_label   = (
-        f"⏳ Lütfen {int(COOLDOWN_S - elapsed)}s bekleyin"
-        if on_cooldown
-        else "🚀 Tahmin Et & Analiz"
-    )
-
     run_btn = st.button(
-        btn_label,
-        width="stretch",
+        "🚀 Tahmin Et & Analiz",
+        use_container_width=True,
         type="primary",
-        disabled=bool(date_error) or on_cooldown,
+        disabled=bool(date_error),
     )
 
     st.divider()
@@ -652,7 +692,6 @@ st.markdown(
 # Buton Tıklandığında
 # ---------------------------------------------------------------------------
 if run_btn:
-    st.session_state.last_run_time = time.time()
     with st.spinner(f"⏳ {asset} verisi çekiliyor ve analiz yapılıyor..."):
         try:
             # Tam backtest pipeline — cache'li, tekrar veri çekimi önlenir

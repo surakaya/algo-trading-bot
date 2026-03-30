@@ -1,4 +1,4 @@
-# v2 — strategy parameter aktif
+# v3 — Yön Tahmini rename
 import os
 import sys
 import numpy as np
@@ -284,7 +284,7 @@ def run_full_backtest(
     start: str = "2015-01-01",
     model_type: str = "auto",
     force_retrain: bool = False,
-    strategy: str = "ML Modeli",
+    strategy: str = "Yön Tahmini",
 ) -> dict:
     """
     Veri çekme → eğitim → sinyal üretme → backtest → metrik hesaplama.

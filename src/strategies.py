@@ -136,7 +136,7 @@ def get_signals(
     Returns:
         0/1 numpy array
     """
-    if strategy == "ML Modeli":
+    if strategy == "Yön Tahmini":
         if model is None or feature_cols is None:
             raise ValueError("ML stratejisi için 'model' ve 'feature_cols' gereklidir.")
         return ml_signals(df, model, feature_cols)
@@ -150,7 +150,7 @@ def get_signals(
     else:
         raise ValueError(
             f"Bilinmeyen strateji: '{strategy}'. "
-            f"Geçerli seçenekler: 'ML Modeli', 'SMA Crossover', 'RSI Stratejisi'"
+            f"Geçerli seçenekler: 'Yön Tahmini', 'SMA Crossover', 'RSI Stratejisi'"
         )
 
 
@@ -158,7 +158,7 @@ def get_signals(
 # Strateji Açıklamaları (UI için)
 # ---------------------------------------------------------------------------
 STRATEGY_INFO = {
-    "ML Modeli": {
+    "Yön Tahmini": {
         "icon"       : "🤖",
         "description": "XGBoost/Random Forest modeli ile yön tahmini.",
         "logic"      : "Model tahmin = 1 → AL, tahmin = 0 → SAT",
