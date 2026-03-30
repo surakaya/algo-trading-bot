@@ -12,3 +12,4 @@ plotly
 requests
 python-dotenv
 ta
+altair>=4.0.0,<5.0.0
