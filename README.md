@@ -116,33 +116,6 @@ SLIPPAGE         = 0.0005  # %0.05 — alımda pahalıya, satışta ucuza
 3. Tarih aralığı belirle
 4. **Tahmin Et & Analiz** butonuna bas
 
----
-
-## ⚡ Kurulum
-
-### 1. Repo'yu klonla
-```bash
-git clone https://github.com/kullanici-adi/algo-trading-bot.git
-cd algo-trading-bot
-```
-
-### 2. Bağımlılıkları yükle
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Dashboard'u başlat
-```bash
-streamlit run dashboard/app.py
-```
-
-### 4. FastAPI'yi başlat (opsiyonel)
-```bash
-uvicorn api.main:app --reload --port 8000
-```
-Swagger docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-
----
 
 ## 🔌 API Endpoints
 
