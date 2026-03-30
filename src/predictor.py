@@ -1,3 +1,4 @@
+# v2 — strategy parameter aktif
 import os
 import sys
 import numpy as np
