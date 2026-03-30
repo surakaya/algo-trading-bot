@@ -1,7 +1,12 @@
+import time
 import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import Optional
+
+# Rate limit retry ayarları
+MAX_RETRIES = 3
+RETRY_WAIT  = 10  # saniye (her denemede 2 katına çıkar)
 
 # Ticker sabitleri
 TICKERS = {
@@ -34,20 +39,41 @@ def fetch_raw_data(
     if end is None:
         end = datetime.today().strftime("%Y-%m-%d")
 
-    df = yf.download(
-        ticker,
-        start=start,
-        end=end,
-        auto_adjust=True,
-        progress=False,
-    )
+    last_exc = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            df = yf.download(
+                ticker,
+                start=start,
+                end=end,
+                auto_adjust=True,
+                progress=False,
+            )
 
-    # yfinance 0.2+ multi-level kolonları düzleştir
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
+            # yfinance 0.2+ multi-level kolonları düzleştir
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
 
-    if df.empty:
-        raise ValueError(f"'{ticker}' için veri çekilemedi. Ticker doğru mu?")
+            if df.empty:
+                raise ValueError(f"'{ticker}' için veri çekilemedi. Ticker doğru mu?")
+
+            break  # başarılı → döngüden çık
+
+        except Exception as e:
+            last_exc = e
+            err_str  = str(e).lower()
+            is_rate_limit = any(
+                x in err_str for x in ["rate", "too many", "429", "limit", "ratelimit"]
+            )
+            if is_rate_limit and attempt < MAX_RETRIES - 1:
+                wait = RETRY_WAIT * (2 ** attempt)  # 10s, 20s, 40s
+                print(f"[yfinance] Rate limit — {wait}s bekleniyor... (deneme {attempt+1}/{MAX_RETRIES})")
+                time.sleep(wait)
+            else:
+                raise
+
+    if last_exc and df.empty:
+        raise last_exc
 
     # Sadece ihtiyacımız olan kolonları al
     cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in df.columns]

@@ -19,6 +19,27 @@ from src.feature_engineering import build_features, get_feature_columns
 from src.predictor import predict_next_day, predict_multi_day, run_full_backtest
 from src.strategies import STRATEGY_INFO
 
+
+# ---------------------------------------------------------------------------
+# Cache'li sarmalayıcılar — yfinance rate limit ve tekrar model eğitimini önler
+# ---------------------------------------------------------------------------
+@st.cache_data(ttl=3600, show_spinner=False)
+def _cached_backtest(asset: str, start_str: str, strategy: str) -> dict:
+    result = run_full_backtest(
+        asset=asset, start=start_str, model_type="auto", force_retrain=False, strategy=strategy
+    )
+    return {k: v for k, v in result.items() if k != "model"}
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _cached_predict(asset: str, start_str: str) -> dict:
+    return predict_next_day(asset=asset, start=start_str)
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _cached_multi_predict(asset: str, start_str: str) -> list:
+    return predict_multi_day(asset=asset, n_days=7, start=start_str)
+
 # ---------------------------------------------------------------------------
 # Sayfa Ayarları
 # ---------------------------------------------------------------------------
@@ -594,7 +615,7 @@ with st.sidebar:
 
     run_btn = st.button(
         btn_label,
-        use_container_width=True,
+        width="stretch",
         type="primary",
         disabled=bool(date_error) or on_cooldown,
     )
@@ -634,30 +655,17 @@ if run_btn:
     st.session_state.last_run_time = time.time()
     with st.spinner(f"⏳ {asset} verisi çekiliyor ve analiz yapılıyor..."):
         try:
-            # Tam backtest pipeline — model otomatik seçilir
-            result = run_full_backtest(
-                asset=asset,
-                start=start_str,
-                model_type="auto",
-                force_retrain=False,
-                strategy=strategy,
-            )
+            # Tam backtest pipeline — cache'li, tekrar veri çekimi önlenir
+            result = _cached_backtest(asset, start_str, strategy)
             st.session_state.result = result
             st.session_state.last_asset = asset
 
-            # Sonraki gün tahmini — kazanan model zaten kaydedildi
-            prediction = predict_next_day(
-                asset=asset,
-                start=start_str,
-            )
+            # Sonraki gün tahmini
+            prediction = _cached_predict(asset, start_str)
             st.session_state.prediction = prediction
 
             # Son 7 gün çoklu tahmin
-            multi_pred = predict_multi_day(
-                asset=asset,
-                n_days=7,
-                start=start_str,
-            )
+            multi_pred = _cached_multi_predict(asset, start_str)
             st.session_state.multi_pred = multi_pred
 
         except Exception as e:
@@ -683,7 +691,6 @@ if st.session_state.result is not None:
     feature_df   = result["feature_df"]
     raw_df       = result["raw_df"]
     feature_cols = result["feature_cols"]
-    model        = result["model"]
     initial_cap  = result["initial_capital"]
 
     # -------------------------------------------------------------------
@@ -812,7 +819,7 @@ if st.session_state.result is not None:
                 margin=dict(l=20, r=20, t=30, b=10),
                 paper_bgcolor="white",
             )
-            st.plotly_chart(gauge, use_container_width=True)
+            st.plotly_chart(gauge, width="stretch")
 
     with multi_col:
         st.markdown("**📅 Son 7 Günün Tahmin Tablosu**")
@@ -864,7 +871,7 @@ if st.session_state.result is not None:
     n_rows = period_options[period_sel]
     display_df = feature_df.tail(n_rows) if n_rows else feature_df
 
-    st.plotly_chart(make_price_chart(display_df, curr_asset), use_container_width=True)
+    st.plotly_chart(make_price_chart(display_df, curr_asset), width="stretch")
 
     st.divider()
 
@@ -875,19 +882,19 @@ if st.session_state.result is not None:
     ind_col1, ind_col2 = st.columns(2)
     with ind_col1:
         if "RSI_14" in display_df.columns:
-            st.plotly_chart(make_rsi_chart(display_df), use_container_width=True)
+            st.plotly_chart(make_rsi_chart(display_df), width="stretch")
         else:
             st.info("RSI verisi bulunamadı.")
     with ind_col2:
         if "Momentum" in display_df.columns:
-            st.plotly_chart(make_momentum_chart(display_df), use_container_width=True)
+            st.plotly_chart(make_momentum_chart(display_df), width="stretch")
         else:
             st.info("Momentum verisi bulunamadı.")
 
     # Bollinger Bands
     with st.expander("📊 Bollinger Bands Göster"):
         if "BB_Upper" in display_df.columns:
-            st.plotly_chart(make_bollinger_chart(display_df), use_container_width=True)
+            st.plotly_chart(make_bollinger_chart(display_df), width="stretch")
         else:
             st.info("Bollinger Bands verisi bulunamadı.")
 
@@ -955,13 +962,13 @@ if st.session_state.result is not None:
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Backtest portföy grafiği
-    st.plotly_chart(make_backtest_chart(backtest_df, bh_df, initial_cap), use_container_width=True)
+    st.plotly_chart(make_backtest_chart(backtest_df, bh_df, initial_cap), width="stretch")
 
     # Kümülatif getiri
-    st.plotly_chart(make_cumulative_return_chart(backtest_df, bh_df), use_container_width=True)
+    st.plotly_chart(make_cumulative_return_chart(backtest_df, bh_df), width="stretch")
 
     # Drawdown
-    st.plotly_chart(make_drawdown_chart(backtest_df), use_container_width=True)
+    st.plotly_chart(make_drawdown_chart(backtest_df), width="stretch")
 
     # Detaylı metrikler
     with st.expander("📋 Detaylı Backtest Metrikleri"):
