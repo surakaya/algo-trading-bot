@@ -4,7 +4,8 @@ numpy
 scikit-learn
 xgboost
 joblib
-streamlit
+streamlit>=1.30.0
+altair>=5.0.0,<6.0.0
 fastapi
 uvicorn
 matplotlib
@@ -12,4 +13,3 @@ plotly
 requests
 python-dotenv
 ta
-altair>=4.0.0,<5.0.0
