@@ -1,4 +1,4 @@
-# 📈 Algo Trading Bot
+#  Algo Trading Bot
 
 > ML tabanlı yön tahmin modeli, çoklu strateji backtesting simülasyonu ve canlı Streamlit dashboard'u içeren FinTech projesi.
 
@@ -8,7 +8,7 @@
 
 ---
 
-## 📌 Project Overview
+##  Project Overview
 
 Bu proje; **Altın (XAU/USD → TRY/gram)**, **USD/TRY** ve **BTC/USD** varlıkları üzerinde:
 
@@ -19,7 +19,7 @@ Bu proje; **Altın (XAU/USD → TRY/gram)**, **USD/TRY** ve **BTC/USD** varlıkl
 
 ---
 
-## ⚙️ Features
+##  Features
 
 | Özellik | Detay |
 |---|---|
@@ -34,16 +34,16 @@ Bu proje; **Altın (XAU/USD → TRY/gram)**, **USD/TRY** ve **BTC/USD** varlıkl
 
 ---
 
-## 🧠 Strategies
+##  Strategies
 
-### 🤖 ML Modeli
+###  ML Modeli
 XGBoost ve Random Forest modellerini eğitir, test accuracy'si yüksek olanı otomatik seçer. Teknik indikatörlerden (MA, RSI, Momentum, Bollinger Bands) öğrenir ve yarınki fiyat yönünü tahmin eder.
 
 ```
 Feature Engineering → Train/Test Split → XGBoost vs RF → Kazananı Seç → Tahmin
 ```
 
-### 📈 SMA Crossover
+###  SMA Crossover
 Kısa ve uzun vadeli hareketli ortalamaların kesişimine dayalı klasik trend takip stratejisi.
 
 ```
@@ -51,7 +51,7 @@ MA5 > MA20 → AL
 MA5 ≤ MA20 → SAT
 ```
 
-### 📉 RSI Stratejisi
+###  RSI Stratejisi
 RSI göstergesinin aşırı alım/satım bölgelerine dayalı kontrarian strateji.
 
 ```
@@ -62,7 +62,7 @@ Arada    → Önceki sinyali koru
 
 ---
 
-## 📊 Performance Metrics
+##  Performance Metrics
 
 | Metrik | Açıklama |
 |---|---|
@@ -75,7 +75,7 @@ Arada    → Önceki sinyali koru
 
 ---
 
-## 🔬 Feature Engineering
+##  Feature Engineering
 
 Model eğitiminde kullanılan teknik indikatörler:
 
@@ -91,7 +91,7 @@ Model eğitiminde kullanılan teknik indikatörler:
 
 ---
 
-## 💰 Backtest Gerçekçiliği
+##  Backtest Gerçekçiliği
 
 Sonuçların gerçek dünya koşullarını yansıtması için:
 
@@ -106,7 +106,7 @@ SLIPPAGE         = 0.0005  # %0.05 — alımda pahalıya, satışta ucuza
 
 ---
 
-## 🚀 Demo
+##  Demo
 
 🔗 **[algo-trading-bot.streamlit.app](https://algo-trading-bot.streamlit.app)**
 
@@ -117,7 +117,7 @@ SLIPPAGE         = 0.0005  # %0.05 — alımda pahalıya, satışta ucuza
 4. **Tahmin Et & Analiz** butonuna bas
 
 
-## 🔌 API Endpoints
+##  API Endpoints
 
 | Method | Endpoint | Açıklama |
 |---|---|---|
@@ -145,7 +145,7 @@ SLIPPAGE         = 0.0005  # %0.05 — alımda pahalıya, satışta ucuza
 
 ---
 
-## 📁 Proje Yapısı
+##  Proje Yapısı
 
 ```
 algo-trading-bot/
@@ -171,7 +171,7 @@ algo-trading-bot/
 
 ---
 
-## 🛠️ Teknoloji Stack'i
+##  Teknoloji Stack'i
 
 | Katman | Teknoloji |
 |---|---|
